@@ -1,60 +1,47 @@
 import discord
-from pychatgpt import Chat, Options
 import openai
-openai.organization = "org-NvHSOMKOEO7S2KSKlOPtUW60"
-openai.api_key = "sk-y3H630JzJDUT3BlbkFJ5OkSKwTZsisS3cjBIaP9"
+import json
+
+f = open("config.json","r")
+
+config_f = f.read()
+
+f.close()
+
+config_f = json.loads(config_f)
+
+
+openai.organization = config_f["openai-org"] # default use "org-NvHSOMKOEO7S2KSKlOPtUW60"
+openai.api_key = config_f["openai-apikey"] 
 openai.Model.list()
-options = Options()
-
-# [New] Enable, Disable logs
-options.logs = True
-
-# Track conversation
-options.track = False
-
-# Optionally, you can pass a file path to save the conversation
-# They're created if they don't exist
-
-# options.chat_log = "chat_log.txt"
-# options.id_log = "id_log.txt"
-
-# Create a Chat object
-#chat = Chat(email="5@lasallehs.org", password="", options=options)
 
 class MyClient(discord.Client):
   async def on_ready(self):
     print('Logged on as', self.user)
 
   async def on_message(self, message):
-    if message.channel.id == 943252467217465386 or message.channel.id == 1050536381182656592 or message.channel.id ==1047565374645870743:
-      if "/gptunofficial" in message.content:
-        chat = Chat(email="jjin25@lasallehs.org", password="", options=options)
-        msg = message.content.replace("/gptunofficial ","")
-        answer = chat.ask(msg)
-        answer=answer[0]
-        print(answer)
-        n = 2000
-        answer_chunks = [answer[i:i+n] for i in range(0, len(answer), n)]
-        print(answer_chunks)
-        for i in answer_chunks:
-          await message.channel.send(i)
-      elif "/gpt" in message.content:
+    if message.channel.id == config_f["discord-channel-id"]:
+      if "/gpt" in message.content:
         msg = message.content.replace("/gpt ","")
-        print("/gpt command used")
+
+        # Accessing openai api        
         response = openai.Completion.create(
-        engine="text-davinci-002",
-        prompt=msg,
-        temperature=0.5,
-        max_tokens=2000,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0
+          engine="text-davinci-002",
+          prompt=msg,
+          temperature=0.5,
+          max_tokens=2000,
+          top_p=1.0,
+          frequency_penalty=0.0,
+          presence_penalty=0.0
         )
-        n = 2000
+
+        # Dealing with chat-gpt longer msgs by splitting up the message into seperate texts
+        DISCORD_MAX_LEN = 2000 
+
         answer = response['choices'][0]['text']
-        answer_chunks = [answer[i:i+n] for i in range(0, len(answer), n)]
+        answer_chunks = [answer[i:i+DISCORD_MAX_LEN] for i in range(0, len(answer), DISCORD_MAX_LEN)]
         for i in answer_chunks:
           await message.channel.send(i)
 
 client = MyClient()
-client.run("")
+client.run(config_f["discord-auth-token"])
